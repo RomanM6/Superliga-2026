@@ -477,7 +477,7 @@ function renderPartidos() {
         </div>
       </div>` : '';
 
-    const boxScore = (jugs, equipo) => {
+    const boxScore = (jugs, equipo, totales) => {
       const rows = jugs.filter(j=>j.jugo!==false).map(j => {
         const pm = j.mas_menos_excel;
         const pmStr = pm > 0 ? `+${pm}` : pm;
@@ -499,6 +499,22 @@ function renderPartidos() {
           <td style="color:var(--text2)">${j.minutos}</td>
         </tr>`;
       }).join('');
+      const totalRow = totales ? `<tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+          <td style="color:var(--text3)">—</td>
+          <td style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;letter-spacing:1px;color:var(--orange);text-align:left">TOTAL</td>
+          <td class="pts-col">${totales.pts}</td>
+          <td>${totales.rebotes_totales}</td>
+          <td>${totales.asistencias}</td>
+          <td>${totales.recuperos}</td>
+          <td>${totales.tapones_cometidos}</td>
+          <td>${totales.perdidas}</td>
+          <td style="color:var(--text2)">${totales.tc2_anotados}/${totales.tc2_intentados}</td>
+          <td style="color:var(--text2)">${totales.tc3_anotados}/${totales.tc3_intentados}</td>
+          <td style="color:var(--text2)">${totales.tl_anotados}/${totales.tl_intentados}</td>
+          <td style="color:var(--orange)">${totales.val_excel}</td>
+          <td style="color:var(--text3)">—</td>
+          <td style="color:var(--text3)">—</td>
+        </tr>` : '';
       return `<div style="margin-top:16px">
         <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;color:var(--orange);margin-bottom:10px;text-transform:uppercase">${equipo}</div>
         <div style="overflow-x:auto">
@@ -508,7 +524,7 @@ function renderPartidos() {
               <th>PTS</th><th>REB</th><th>AST</th><th>REC</th><th>TAP</th><th>PER</th>
               <th>2P</th><th>3P</th><th>TL</th><th>VAL</th><th>+/-</th><th>MIN</th>
             </tr></thead>
-            <tbody>${rows}</tbody>
+            <tbody>${rows}${totalRow}</tbody>
           </table>
         </div>
       </div>`;
@@ -540,8 +556,8 @@ function renderPartidos() {
         </div>
       </div>
       ${quarters}
-      ${jlBox && jlBox.length ? boxScore(jlBox, p.equipo_local) : ''}
-      ${jvBox && jvBox.length ? boxScore(jvBox, p.equipo_visitante) : ''}
+      ${jlBox && jlBox.length ? boxScore(jlBox, p.equipo_local, p.totales_local) : ''}
+      ${jvBox && jvBox.length ? boxScore(jvBox, p.equipo_visitante, p.totales_visitante) : ''}
     </div>`;
   }).join('');
 }
@@ -579,9 +595,9 @@ function renderJugadores() {
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
