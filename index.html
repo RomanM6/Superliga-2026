@@ -804,9 +804,8 @@ function renderScatter() {
 
   // Mapeo de coordenadas — Y invertido: más arriba = menos recibido = mejor defensa
   const mx = v => PAD.left + (v - xMin) / (xMax - xMin) * PW;
-  const my = v => PAD.top  + (v - yMin) / (yMax - yMin) * PH; // sin invertir aún
-  // Invertir: yMin arriba (mejor defensa), yMax abajo
-  const myi = v => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * PH;
+  // Invertido: yMin (menos recibido = mejor defensa) queda arriba, yMax abajo
+  const myi = v => PAD.top + (v - yMin) / (yMax - yMin) * PH;
 
   // Líneas de cuadrante (promedios)
   const avgXpx = mx(avgX), avgYpx = myi(avgY);
@@ -868,7 +867,7 @@ function renderScatter() {
     const cx = mx(e.x), cy = myi(e.y);
     const isElite = e.x >= avgX && e.y <= avgY;
     const color = isElite ? 'var(--orange)' : 'var(--blue)';
-    out += `<circle cx="${cx}" cy="${cy}" r="7" fill="${color}" fill-opacity="0.85" stroke="var(--surface)" stroke-width="2"
+    out += `<circle cx="${cx}" cy="${cy}" r="9" fill="${color}" fill-opacity="0.85" stroke="var(--surface)" stroke-width="2"
       class="scatter-dot" data-nombre="${e.nombre}" data-x="${e.x}" data-y="${e.y}"
       style="cursor:pointer;transition:r .15s"/>`;
     out += `<text x="${cx}" y="${cy+26}" text-anchor="middle" fill="${color}" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="0.5" pointer-events="none">${abreviar(e.nombre).toUpperCase()}</text>`;
