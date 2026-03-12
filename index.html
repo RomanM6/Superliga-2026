@@ -871,7 +871,7 @@ function renderScatter() {
     out += `<circle cx="${cx}" cy="${cy}" r="7" fill="${color}" fill-opacity="0.85" stroke="var(--surface)" stroke-width="2"
       class="scatter-dot" data-nombre="${e.nombre}" data-x="${e.x}" data-y="${e.y}"
       style="cursor:pointer;transition:r .15s"/>`;
-    out += `<text x="${cx}" y="${cy+4}" text-anchor="middle" fill="var(--surface)" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="9" pointer-events="none">${abreviar(e.nombre).substring(0,3).toUpperCase()}</text>`;
+    out += `<text x="${cx}" y="${cy+26}" text-anchor="middle" fill="${color}" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="12" letter-spacing="0.5" pointer-events="none">${abreviar(e.nombre).toUpperCase()}</text>`;
   });
 
   svg.innerHTML = out;
