@@ -259,6 +259,13 @@ select:focus{border-color:var(--orange)}
     <div class="section-hdr"><h2>Rendimiento por Cuarto</h2><span class="tag">Anotado vs Recibido</span></div>
     <div id="cuartos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
   </div>
+  <div style="margin-bottom:24px">
+    <div class="section-hdr"><h2>Ataque vs Defensa</h2><span class="tag">PPG anotados · PPG recibidos invertido</span></div>
+    <div class="card" style="padding:20px 24px">
+      <svg id="scatter-svg" width="100%" style="display:block"></svg>
+      <div id="scatter-tooltip" style="position:fixed;display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;pointer-events:none;z-index:300;min-width:160px"></div>
+    </div>
+  </div>
   <div>
     <div class="section-hdr"><h2>KPIs por Equipo</h2></div>
     <div id="kpis-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px"></div>
@@ -667,6 +674,7 @@ function renderRankContent() {
 function renderEquipos() {
   renderMultiTable();
   renderCuartos();
+  renderScatter();
   renderKPIs();
 }
 function renderMultiTable() {
@@ -752,6 +760,148 @@ function renderCuartos() {
     </div>`;
   }).join('');
 }
+// Abreviaciones de nombres largos
+const SIGLAS = {
+  'NÁUTICO SPORTIVO AVELLANEDA':  'NÁUTICO',
+  'GIMNASIA Y ESGRIMA ROSARIO':   'GIMNASIA',
+  'ATLANTIC SPORTSMEN CLUB':      'ATLANTIC',
+  'SPORTIVO AMERICA':             'SP. AMERICA',
+  'SPORTSMEN UNIDOS':             'SP. UNIDOS',
+  'PROVINCIAL ROSARIO':           'PROVINCIAL',
+  'REGATAS ROSARIO':              'REGATAS',
+  'UNIÓN Y PROGRESO':             'U. Y PROGRESO',
+  'UNIÓN A.S.':                   'UNIÓN A.S.',
+  'ROSARIO CENTRAL':              'R. CENTRAL',
+};
+function abreviar(nombre) {
+  return SIGLAS[nombre] || nombre.split(' ')[0];
+}
+
+function renderScatter() {
+  const svg = document.getElementById('scatter-svg');
+  const tooltip = document.getElementById('scatter-tooltip');
+  const equipos = Object.entries(DATA.kpis_equipos)
+    .filter(([,v]) => v.pj > 0)
+    .map(([nombre, v]) => ({ nombre, x: v.ppg_f, y: v.ppg_c }));
+
+  if (!equipos.length) return;
+
+  const W = svg.parentElement.clientWidth - 48;
+  const H = Math.round(W * 0.55);
+  const PAD = { top: 28, right: 28, bottom: 52, left: 52 };
+  const PW = W - PAD.left - PAD.right;
+  const PH = H - PAD.top - PAD.bottom;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+
+  const xs = equipos.map(e => e.x);
+  const ys = equipos.map(e => e.y);
+  const xMin = Math.min(...xs) - 6, xMax = Math.max(...xs) + 6;
+  const yMin = Math.min(...ys) - 6, yMax = Math.max(...ys) + 6;
+  const avgX = xs.reduce((a,b)=>a+b,0)/xs.length;
+  const avgY = ys.reduce((a,b)=>a+b,0)/ys.length;
+
+  // Mapeo de coordenadas — Y invertido: más arriba = menos recibido = mejor defensa
+  const mx = v => PAD.left + (v - xMin) / (xMax - xMin) * PW;
+  const my = v => PAD.top  + (v - yMin) / (yMax - yMin) * PH; // sin invertir aún
+  // Invertir: yMin arriba (mejor defensa), yMax abajo
+  const myi = v => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * PH;
+
+  // Líneas de cuadrante (promedios)
+  const avgXpx = mx(avgX), avgYpx = myi(avgY);
+
+  let out = '';
+
+  // Fondo cuadrantes
+  const q = [
+    { x: PAD.left, y: PAD.top,   w: avgXpx-PAD.left,            h: avgYpx-PAD.top,            fill:'rgba(34,197,94,0.04)'  }, // ↖ defensivos
+    { x: avgXpx,   y: PAD.top,   w: PAD.left+PW-avgXpx,         h: avgYpx-PAD.top,            fill:'rgba(249,115,22,0.07)' }, // ↗ élite
+    { x: PAD.left, y: avgYpx,    w: avgXpx-PAD.left,            h: PAD.top+PH-avgYpx,         fill:'rgba(239,68,68,0.04)'  }, // ↙ débiles
+    { x: avgXpx,   y: avgYpx,    w: PAD.left+PW-avgXpx,         h: PAD.top+PH-avgYpx,         fill:'rgba(59,130,246,0.04)' }, // ↘ ofensivos
+  ];
+  q.forEach(r => {
+    out += `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.fill}"/>`;
+  });
+
+  // Etiquetas de cuadrante
+  const qlabels = [
+    { x: PAD.left+6,       y: PAD.top+14,    t:'DEFENSIVOS',  c:'var(--green)'  },
+    { x: avgXpx+6,         y: PAD.top+14,    t:'ÉLITE',       c:'var(--orange)' },
+    { x: PAD.left+6,       y: PAD.top+PH-6,  t:'A MEJORAR',   c:'var(--red)'    },
+    { x: avgXpx+6,         y: PAD.top+PH-6,  t:'OFENSIVOS',   c:'var(--blue)'   },
+  ];
+  qlabels.forEach(l => {
+    out += `<text x="${l.x}" y="${l.y}" fill="${l.c}" font-family="'JetBrains Mono',monospace" font-size="9" letter-spacing="1" opacity="0.6">${l.t}</text>`;
+  });
+
+  // Líneas de promedio
+  out += `<line x1="${avgXpx}" y1="${PAD.top}" x2="${avgXpx}" y2="${PAD.top+PH}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4,3"/>`;
+  out += `<line x1="${PAD.left}" y1="${avgYpx}" x2="${PAD.left+PW}" y2="${avgYpx}" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+  // Ejes
+  out += `<line x1="${PAD.left}" y1="${PAD.top+PH}" x2="${PAD.left+PW}" y2="${PAD.top+PH}" stroke="var(--border)" stroke-width="1"/>`;
+  out += `<line x1="${PAD.left}" y1="${PAD.top}"    x2="${PAD.left}"    y2="${PAD.top+PH}" stroke="var(--border)" stroke-width="1"/>`;
+
+  // Ticks eje X
+  const xTicks = 5;
+  for (let i=0; i<=xTicks; i++) {
+    const val = xMin + (xMax-xMin)*i/xTicks;
+    const px = mx(val);
+    out += `<text x="${px}" y="${PAD.top+PH+16}" text-anchor="middle" fill="var(--text3)" font-family="'JetBrains Mono',monospace" font-size="10">${Math.round(val)}</text>`;
+  }
+
+  // Ticks eje Y (invertido: arriba=bajo valor recibido)
+  const yTicks = 4;
+  for (let i=0; i<=yTicks; i++) {
+    const val = yMin + (yMax-yMin)*i/yTicks;
+    const py = myi(val);
+    out += `<text x="${PAD.left-8}" y="${py+4}" text-anchor="end" fill="var(--text3)" font-family="'JetBrains Mono',monospace" font-size="10">${Math.round(val)}</text>`;
+  }
+
+  // Etiquetas de ejes
+  out += `<text x="${PAD.left+PW/2}" y="${H-4}" text-anchor="middle" fill="var(--text2)" font-family="'Barlow',sans-serif" font-size="11">ATAQUE (PPG anotados)</text>`;
+  out += `<text x="12" y="${PAD.top+PH/2}" text-anchor="middle" fill="var(--text2)" font-family="'Barlow',sans-serif" font-size="11" transform="rotate(-90,12,${PAD.top+PH/2})">DEFENSA (PPG recibidos ↑ mejor)</text>`;
+
+  // Puntos
+  equipos.forEach(e => {
+    const cx = mx(e.x), cy = myi(e.y);
+    const isElite = e.x >= avgX && e.y <= avgY;
+    const color = isElite ? 'var(--orange)' : 'var(--blue)';
+    out += `<circle cx="${cx}" cy="${cy}" r="7" fill="${color}" fill-opacity="0.85" stroke="var(--surface)" stroke-width="2"
+      class="scatter-dot" data-nombre="${e.nombre}" data-x="${e.x}" data-y="${e.y}"
+      style="cursor:pointer;transition:r .15s"/>`;
+    out += `<text x="${cx}" y="${cy+4}" text-anchor="middle" fill="var(--surface)" font-family="'Barlow Condensed',sans-serif" font-weight="800" font-size="9" pointer-events="none">${abreviar(e.nombre).substring(0,3).toUpperCase()}</text>`;
+  });
+
+  svg.innerHTML = out;
+
+  // Hover: mostrar tooltip
+  svg.querySelectorAll('.scatter-dot').forEach(dot => {
+    dot.addEventListener('mouseenter', function(ev) {
+      const nombre = this.getAttribute('data-nombre');
+      const atq = this.getAttribute('data-x');
+      const def = this.getAttribute('data-y');
+      tooltip.innerHTML = `
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;margin-bottom:6px">${nombre}</div>
+        <div style="font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace">
+          <span style="color:var(--orange)">ATQ</span> ${atq} PPG &nbsp;·&nbsp;
+          <span style="color:var(--blue)">DEF</span> ${def} recibidos
+        </div>`;
+      tooltip.style.display = 'block';
+      this.setAttribute('r', '10');
+    });
+    dot.addEventListener('mousemove', function(ev) {
+      tooltip.style.left = (ev.clientX + 14) + 'px';
+      tooltip.style.top  = (ev.clientY - 36) + 'px';
+    });
+    dot.addEventListener('mouseleave', function() {
+      tooltip.style.display = 'none';
+      this.setAttribute('r', '7');
+    });
+  });
+}
+
 function renderKPIs() {
   const grid = document.getElementById('kpis-grid');
   const kpis = Object.values(DATA.kpis_equipos);
