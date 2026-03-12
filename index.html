@@ -690,8 +690,42 @@ function renderMultiTable() {
     <td style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:${i===0?'var(--orange)':'var(--text)'}">${e.rank_global}</td>
   </tr>`).join('')}</tbody>`;
 }
+function buildPerfilesFromPartidos() {
+  // Recalcula perfiles por cuarto directamente desde partidos[]
+  // Esto garantiza que todos los equipos aparezcan aunque el JSON
+  // precalculado no los incluya (ej: partidos cargados después del procesamiento)
+  const acum = {};
+  DATA.partidos.forEach(p => {
+    const pl = p.parciales_local, pv = p.parciales_visitante;
+    if (!pl || !pv) return;
+    [p.equipo_local, p.equipo_visitante].forEach(eq => {
+      if (!acum[eq]) acum[eq] = {equipo: eq, Q1f:0, Q2f:0, Q3f:0, Q4f:0, Q1c:0, Q2c:0, Q3c:0, Q4c:0, n:0};
+    });
+    const el = acum[p.equipo_local], ev = acum[p.equipo_visitante];
+    el.Q1f+=pl.q1; el.Q2f+=pl.q2; el.Q3f+=pl.q3; el.Q4f+=pl.q4;
+    el.Q1c+=pv.q1; el.Q2c+=pv.q2; el.Q3c+=pv.q3; el.Q4c+=pv.q4; el.n++;
+    ev.Q1f+=pv.q1; ev.Q2f+=pv.q2; ev.Q3f+=pv.q3; ev.Q4f+=pv.q4;
+    ev.Q1c+=pl.q1; ev.Q2c+=pl.q2; ev.Q3c+=pl.q3; ev.Q4c+=pl.q4; ev.n++;
+  });
+  return Object.values(acum).map(e => {
+    const n = e.n || 1;
+    const cf = {Q1: +(e.Q1f/n).toFixed(1), Q2: +(e.Q2f/n).toFixed(1), Q3: +(e.Q3f/n).toFixed(1), Q4: +(e.Q4f/n).toFixed(1)};
+    const cc = {Q1: +(e.Q1c/n).toFixed(1), Q2: +(e.Q2c/n).toFixed(1), Q3: +(e.Q3c/n).toFixed(1), Q4: +(e.Q4c/n).toFixed(1)};
+    const vals = Object.values(cf);
+    const maxV = Math.max(...vals), minV = Math.min(...vals);
+    const qs = ['Q1','Q2','Q3','Q4'];
+    return {
+      equipo: e.equipo,
+      cuartos_f: cf,
+      cuartos_c: cc,
+      mejor_cuarto_anotador: qs[vals.indexOf(maxV)],
+      peor_cuarto_anotador:  qs[vals.indexOf(minV)]
+    };
+  }).sort((a,b) => a.equipo.localeCompare(b.equipo));
+}
+
 function renderCuartos() {
-  const perfiles = DATA.comparativas.analisis_por_cuarto.perfiles_por_equipo;
+  const perfiles = buildPerfilesFromPartidos();
   const grid = document.getElementById('cuartos-grid');
   const maxQ = Math.max(...perfiles.flatMap(e=>Object.values(e.cuartos_f)));
   grid.innerHTML = perfiles.map(e => {
