@@ -945,10 +945,30 @@ function renderCuartos() {
         <div class="qbar-lbl">${q}</div>
       </div>`;
     }).join('');
+    
+    // Generar tabla de valores numéricos
+    const valores = ['Q1','Q2','Q3','Q4'].map(q => {
+      return `<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px">
+        <span style="color:var(--text3)">${q}</span>
+        <span style="color:var(--orange);font-family:'Barlow Condensed',sans-serif;font-weight:700">${cf[q]}</span>
+        <span style="color:var(--text3)">-</span>
+        <span style="color:var(--blue);font-family:'Barlow Condensed',sans-serif;font-weight:700">${cc[q]}</span>
+      </div>`;
+    }).join('');
+    
     return `<div class="card">
       <div class="card-title">${e.equipo}</div>
-      <div style="display:flex;gap:8px;align-items:flex-end;height:70px;margin-bottom:4px">${bars}</div>
-      <div style="display:flex;gap:16px;margin-top:8px">
+      <div style="display:flex;gap:8px;align-items:flex-end;height:70px;margin-bottom:8px">${bars}</div>
+      <div style="background:var(--surface2);border-radius:6px;padding:8px 10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase">
+          <span>Cuarto</span>
+          <span style="color:var(--orange)">A Favor</span>
+          <span></span>
+          <span style="color:var(--blue)">En Contra</span>
+        </div>
+        ${valores}
+      </div>
+      <div style="display:flex;gap:16px">
         <span style="font-size:11px;color:var(--text2)">Mejor: <span style="color:var(--orange)">${e.mejor_cuarto_anotador}</span></span>
         <span style="font-size:11px;color:var(--text2)">Peor: <span style="color:var(--red)">${e.peor_cuarto_anotador}</span></span>
       </div>
