@@ -341,22 +341,22 @@ function showPage(id) {
 
 // ══════════════ INIT ══════════════
 function initApp() {
-  // VERIFICAR si necesitamos asignar fechas automáticamente
+  // ORDENAR partidos por fecha_numero en memoria
+  // Esto asegura que el array esté ordenado incluso si el JSON no lo está
+  DATA.partidos.sort((a, b) => {
+    // Ordenar primero por fecha_numero, luego por id como criterio secundario
+    const fechaDiff = (a.fecha_numero || 999) - (b.fecha_numero || 999);
+    if (fechaDiff !== 0) return fechaDiff;
+    // Si la fecha es igual, mantener orden original por ID
+    return (a.id || '').localeCompare(b.id || '');
+  });
+  
+  // RECALCULAR fecha_numero basado en orden (8 partidos por fecha)
+  // Esto se ejecuta DESPUÉS del ordenamiento
   const PARTIDOS_POR_FECHA = 8;
-  
-  // Verificar si todos los partidos tienen fecha_numero válido
-  const necesitaRecalculo = DATA.partidos.some(p => !p.fecha_numero || p.fecha_numero < 1);
-  
-  if (necesitaRecalculo) {
-    // Solo recalcular si hay partidos sin fecha o con fecha inválida
-    console.log("Asignando fechas automáticamente (8 partidos por fecha)...");
-    DATA.partidos.forEach((partido, index) => {
-      partido.fecha_numero = Math.floor(index / PARTIDOS_POR_FECHA) + 1;
-    });
-  } else {
-    // Los partidos ya tienen fecha_numero correcto del JSON
-    console.log("Usando fecha_numero del JSON (ya asignado correctamente)");
-  }
+  DATA.partidos.forEach((partido, index) => {
+    partido.fecha_numero = Math.floor(index / PARTIDOS_POR_FECHA) + 1;
+  });
   
   const fechas = [...new Set(DATA.partidos.map(p => p.fecha_numero))].sort();
   document.getElementById('fecha-badge').textContent = `Fecha ${fechas[fechas.length-1]} · ${DATA.partidos.length} partidos`;
@@ -797,9 +797,9 @@ function renderJugadores() {
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
