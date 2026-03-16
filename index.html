@@ -196,11 +196,13 @@ select:focus{border-color:var(--orange)}
   </div>
   <div class="sep"></div>
   <div class="section-hdr"><h2>Resultados</h2></div>
+  <div class="tabs" id="filtro-resultados" style="margin-bottom:16px"></div>
   <div id="resultados-wrap"></div>
 </div>
 
 <div class="page" id="page-partidos">
   <div class="section-hdr"><h2>Partidos</h2><span class="tag" id="partidos-tag">—</span></div>
+  <div class="tabs" id="filtro-partidos" style="margin-bottom:16px"></div>
   <div id="partidos-list"></div>
 </div>
 
@@ -339,6 +341,7 @@ function showPage(id) {
 function initApp() {
   const fechas = [...new Set(DATA.partidos.map(p => p.fecha_numero))].sort();
   document.getElementById('fecha-badge').textContent = `Fecha ${fechas[fechas.length-1]} · ${DATA.partidos.length} partidos`;
+  generarFiltrosFecha();  // Generar botones de filtro dinámicamente
   renderPosiciones();
   renderLideres();
   renderResultados();
@@ -405,6 +408,178 @@ function renderResultados() {
   const wrap = document.getElementById('resultados-wrap');
   wrap.innerHTML = DATA.partidos.map(p => renderMatchCard(p)).join('');
 }
+
+// ══════════════ FILTRO DINÁMICO POR FECHA ══════════════
+let currentFechaFilter = {
+  posiciones: null,
+  partidos: null
+};
+
+// Generar botones de filtro dinámicamente según las fechas en los datos
+function generarFiltrosFecha() {
+  // Obtener todas las fechas únicas del JSON, ordenadas
+  const fechasUnicas = [...new Set(DATA.partidos.map(p => p.fecha_numero))].sort((a, b) => a - b);
+  
+  // Generar botones para la sección de Resultados (página Posiciones)
+  const filtroResultados = document.getElementById('filtro-resultados');
+  let botonesResultados = '<button class="tab-btn active" onclick="filterMatchesByFecha(null, \'posiciones\', this)">Todas</button>';
+  fechasUnicas.forEach(fecha => {
+    botonesResultados += `<button class="tab-btn" onclick="filterMatchesByFecha(${fecha}, 'posiciones', this)">Fecha ${fecha}</button>`;
+  });
+  filtroResultados.innerHTML = botonesResultados;
+  
+  // Generar botones para la página de Partidos
+  const filtroPartidos = document.getElementById('filtro-partidos');
+  let botonesPartidos = '<button class="tab-btn active" onclick="filterMatchesByFecha(null, \'partidos\', this)">Todas</button>';
+  fechasUnicas.forEach(fecha => {
+    botonesPartidos += `<button class="tab-btn" onclick="filterMatchesByFecha(${fecha}, 'partidos', this)">Fecha ${fecha}</button>`;
+  });
+  filtroPartidos.innerHTML = botonesPartidos;
+}
+
+function filterMatchesByFecha(fechaNumero, seccion, button) {
+  // Guardar el filtro actual
+  currentFechaFilter[seccion] = fechaNumero;
+  
+  // Actualizar estilos de los botones de filtro
+  const parentSection = seccion === 'posiciones' 
+    ? document.getElementById('filtro-resultados')
+    : document.getElementById('filtro-partidos');
+  
+  const buttons = parentSection.querySelectorAll('.tab-btn');
+  buttons.forEach(btn => btn.classList.remove('active'));
+  button.classList.add('active');
+  
+  // Filtrar los partidos
+  let partidosFiltrados = DATA.partidos;
+  if (fechaNumero !== null) {
+    partidosFiltrados = DATA.partidos.filter(p => p.fecha_numero === fechaNumero);
+  }
+  
+  // Renderizar según la sección
+  if (seccion === 'posiciones') {
+    // Renderizar los partidos en la sección de resultados
+    const wrap = document.getElementById('resultados-wrap');
+    wrap.innerHTML = partidosFiltrados.map(p => renderMatchCard(p)).join('');
+  } else if (seccion === 'partidos') {
+    // Renderizar en la página de partidos con box score
+    const wrap = document.getElementById('partidos-list');
+    const cantidadPartidos = fechaNumero === null 
+      ? `${DATA.partidos.length} partidos`
+      : `${partidosFiltrados.length} de ${DATA.partidos.length} partidos`;
+    document.getElementById('partidos-tag').textContent = cantidadPartidos;
+    
+    wrap.innerHTML = partidosFiltrados.map(p => {
+      const localWin = p.pts_local > p.pts_visitante;
+      const pl = p.parciales_local, pv = p.parciales_visitante;
+      const quarters = pl ? `
+        <div class="match-quarters">
+          ${['q1','q2','q3','q4'].map((q,i)=>{
+            const lw=pl[q]>pv[q],vw=pv[q]>pl[q];
+            return `<div class="qtr-cell">
+              <div class="q-lbl">Q${i+1}</div>
+              <div style="display:flex;justify-content:center;gap:6px">
+                <span class="q-val ${lw?'win-q':''}">${pl[q]}</span>
+                <span style="color:var(--text3);font-family:'Barlow Condensed',sans-serif;font-size:18px">-</span>
+                <span class="q-val ${vw?'win-q':''}">${pv[q]}</span>
+              </div>
+            </div>`;
+          }).join('')}
+          <div class="qtr-cell">
+            <div class="q-lbl">TOTAL</div>
+            <div style="display:flex;justify-content:center;gap:6px">
+              <span class="q-val ${localWin?'win-q':''}">${p.pts_local}</span>
+              <span style="color:var(--text3);font-family:'Barlow Condensed',sans-serif;font-size:18px">-</span>
+              <span class="q-val ${!localWin?'win-q':''}">${p.pts_visitante}</span>
+            </div>
+          </div>
+        </div>` : '';
+
+      const boxScore = (jugs, equipo, totales) => {
+        const rows = jugs.filter(j => j.jugo).map(j => {
+          const pm = j.mas_menos_excel;
+          const pmStr = pm > 0 ? `+${pm}` : pm;
+          const pmCls = pm > 0 ? 'style="color:var(--green)"' : (pm < 0 ? 'style="color:var(--red)"' : '');
+          return `<tr onclick="openPlayerModal('${j.nombre}','${equipo}')">
+            <td>${j.numero}</td>
+            <td>${j.nombre}</td>
+            <td class="pts-col">${j.pts}</td>
+            <td>${j.rebotes_totales}</td>
+            <td>${j.asistencias}</td>
+            <td>${j.recuperos}</td>
+            <td>${j.tapones_cometidos}</td>
+            <td>${j.perdidas}</td>
+            <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados}</td>
+            <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados}</td>
+            <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados}</td>
+            <td style="color:var(--orange)">${j.val_excel}</td>
+            <td ${pmCls}>${pmStr}</td>
+            <td style="color:var(--text2)">${j.minutos}</td>
+          </tr>`;
+        }).join('');
+        const totalRow = totales ? `<tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+            <td style="color:var(--text3)">—</td>
+            <td style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;letter-spacing:1px;color:var(--orange);text-align:left">TOTAL</td>
+            <td class="pts-col">${totales.pts}</td>
+            <td>${totales.rebotes_totales}</td>
+            <td>${totales.asistencias}</td>
+            <td>${totales.recuperos}</td>
+            <td>${totales.tapones_cometidos}</td>
+            <td>${totales.perdidas}</td>
+            <td style="color:var(--text2)">${totales.tc2_anotados}/${totales.tc2_intentados}</td>
+            <td style="color:var(--text2)">${totales.tc3_anotados}/${totales.tc3_intentados}</td>
+            <td style="color:var(--text2)">${totales.tl_anotados}/${totales.tl_intentados}</td>
+            <td style="color:var(--orange)">${totales.val_excel}</td>
+            <td style="color:var(--text3)">—</td>
+            <td style="color:var(--text3)">—</td>
+          </tr>` : '';
+        return `<div style="margin-top:16px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;letter-spacing:1px;color:var(--orange);margin-bottom:10px;text-transform:uppercase">${equipo}</div>
+          <div style="overflow-x:auto">
+            <table class="player-table" style="min-width:700px">
+              <thead><tr>
+                <th style="text-align:center">#</th><th style="text-align:left">JUGADOR</th>
+                <th>PTS</th><th>REB</th><th>AST</th><th>REC</th><th>TAP</th><th>PER</th>
+                <th>2P</th><th>3P</th><th>TL</th><th>VAL</th><th>+/-</th><th>MIN</th>
+              </tr></thead>
+              <tbody>${rows}${totalRow}</tbody>
+            </table>
+          </div>
+        </div>`;
+      };
+
+      const jl = DATA.jugadores.filter(j => j.equipo === p.equipo_local);
+      const jv = DATA.jugadores.filter(j => j.equipo === p.equipo_visitante);
+      const jlBox = p.jugadores_local || jl;
+      const jvBox = p.jugadores_visitante || jv;
+
+      return `<div class="card" style="margin-bottom:16px">
+        <div class="match-header">
+          <div class="match-team home ${localWin?'winner':''}">
+            <div class="team-name">${p.equipo_local}</div>
+            <div class="team-record">Local</div>
+          </div>
+          <div class="match-score">
+            <div class="score">
+              <span style="color:${localWin?'var(--orange)':'var(--text2)'}">${p.pts_local}</span>
+              <span style="color:var(--text3);margin:0 4px">-</span>
+              <span style="color:${!localWin?'var(--orange)':'var(--text2)'}">${p.pts_visitante}</span>
+            </div>
+            <div class="fecha-info">Fecha ${p.fecha_numero}</div>
+          </div>
+          <div class="match-team ${!localWin?'winner':''}">
+            <div class="team-name">${p.equipo_visitante}</div>
+            <div class="team-record">Visitante</div>
+          </div>
+        </div>
+        ${quarters}
+        ${jlBox && jlBox.length ? boxScore(jlBox, p.equipo_local, p.totales_local) : ''}
+        ${jvBox && jvBox.length ? boxScore(jvBox, p.equipo_visitante, p.totales_visitante) : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
 
 function renderMatchCard(p) {
   const localWin = p.pts_local > p.pts_visitante;
@@ -602,9 +777,9 @@ function renderJugadores() {
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
@@ -1150,6 +1325,26 @@ function closeModal(e) {
   if (e.target === document.getElementById('modal-overlay'))
     document.getElementById('modal-overlay').classList.remove('open');
 }
+</script>
+<script>
+// ── Datos cargados externamente para mantener el HTML liviano ──
+let DATA = null;
+
+fetch('datos_torneo_final.json')
+  .then(r => {
+    if (!r.ok) throw new Error('No se pudo cargar datos_torneo_final.json: ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    DATA = data;
+    initApp();
+  })
+  .catch(err => {
+    document.body.innerHTML = '<div style="padding:2rem;color:red;font-family:sans-serif">'
+      + '<h2>Error al cargar los datos</h2><p>' + err.message + '</p>'
+      + '<p>Asegurate de que <strong>datos_torneo_final.json</strong> esté en la misma carpeta que este HTML.</p></div>';
+    console.error(err);
+  });
 </script>
 </body>
 </html>
