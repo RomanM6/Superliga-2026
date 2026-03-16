@@ -339,6 +339,13 @@ function showPage(id) {
 
 // ══════════════ INIT ══════════════
 function initApp() {
+  // ASIGNAR FECHAS AUTOMÁTICAMENTE basado en el orden (8 partidos por fecha)
+  const PARTIDOS_POR_FECHA = 8;
+  DATA.partidos.forEach((partido, index) => {
+    // Calcular la fecha según la posición en el array
+    partido.fecha_numero = Math.floor(index / PARTIDOS_POR_FECHA) + 1;
+  });
+  
   const fechas = [...new Set(DATA.partidos.map(p => p.fecha_numero))].sort();
   document.getElementById('fecha-badge').textContent = `Fecha ${fechas[fechas.length-1]} · ${DATA.partidos.length} partidos`;
   generarFiltrosFecha();  // Generar botones de filtro dinámicamente
