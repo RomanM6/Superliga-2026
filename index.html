@@ -1285,7 +1285,8 @@ function renderCompJug() {
 function openPlayerModal(nombre, equipo) {
   const j = DATA.jugadores.find(x=>x.nombre===nombre&&x.equipo===equipo);
   if(!j) return;
-  const bm = DATA.comparativas.benchmarks_jugadores[nombre+'|'+equipo];
+  const bm = (DATA.comparativas.benchmarks_jugadores || [])
+           .find(b => b.nombre === nombre && b.equipo === equipo);
   const pm = j.mas_menos_excel;
   const pmStr = pm>=0?`+${pm}`:pm;
   const pmCls = pm>0?'color:var(--green)':pm<0?'color:var(--red)':'';
