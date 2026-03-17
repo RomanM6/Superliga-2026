@@ -217,7 +217,6 @@ select:focus{border-color:var(--orange)}
         <option value="bpg">Tapones/PJ</option><option value="vpg">Valoración/PJ</option>
         <option value="ts_pct">TS%</option><option value="per">PER</option>
         <option value="mas_menos_excel">+/-</option><option value="mpg">Minutos/PJ</option>
-        <option value="partidos_jugados">Partidos Jugados</option>
       </select>
     </div>
   </div>
@@ -226,14 +225,13 @@ select:focus{border-color:var(--orange)}
       <table class="player-table">
         <thead><tr>
           <th>#</th><th>JUGADOR</th>
-          <th onclick="setSortCol('partidos_jugados')" id="th-partidos_jugados">PJ</th>
           <th onclick="setSortCol('ppg')" id="th-ppg">PPG</th>
           <th onclick="setSortCol('rpg')" id="th-rpg">RPG</th>
           <th onclick="setSortCol('apg')" id="th-apg">APG</th>
           <th onclick="setSortCol('spg')" id="th-spg">SPG</th>
           <th onclick="setSortCol('bpg')" id="th-bpg">BPG</th>
           <th onclick="setSortCol('vpg')" id="th-vpg">VAL</th>
-          <th onclick="setSortCol('fg_pct')" id="th-fg_pct">TC (A/I · %)</th>
+          <th onclick="setSortCol('fg2_pct')" id="th-fg2_pct">2P (A/I · %)</th>
           <th onclick="setSortCol('fg3_pct')" id="th-fg3_pct">3P (A/I · %)</th>
           <th onclick="setSortCol('ft_pct')" id="th-ft_pct">TL (A/I · %)</th>
           <th onclick="setSortCol('ts_pct')" id="th-ts_pct">TS%</th>
@@ -341,20 +339,10 @@ function showPage(id) {
 
 // ══════════════ INIT ══════════════
 function initApp() {
-  // ORDENAR partidos por fecha_numero en memoria
-  // Esto asegura que el array esté ordenado incluso si el JSON no lo está
-  DATA.partidos.sort((a, b) => {
-    // Ordenar primero por fecha_numero, luego por id como criterio secundario
-    const fechaDiff = (a.fecha_numero || 999) - (b.fecha_numero || 999);
-    if (fechaDiff !== 0) return fechaDiff;
-    // Si la fecha es igual, mantener orden original por ID
-    return (a.id || '').localeCompare(b.id || '');
-  });
-  
-  // RECALCULAR fecha_numero basado en orden (8 partidos por fecha)
-  // Esto se ejecuta DESPUÉS del ordenamiento
+  // ASIGNAR FECHAS AUTOMÁTICAMENTE basado en el orden (8 partidos por fecha)
   const PARTIDOS_POR_FECHA = 8;
   DATA.partidos.forEach((partido, index) => {
+    // Calcular la fecha según la posición en el array
     partido.fecha_numero = Math.floor(index / PARTIDOS_POR_FECHA) + 1;
   });
   
@@ -793,13 +781,12 @@ function renderJugadores() {
     return `<tr onclick="openPlayerModal('${j.nombre}','${j.equipo}')">
       <td>${i+1}</td>
       <td title="${j.equipo}">${j.nombre}</td>
-      <td style="color:var(--text2);font-family:'Barlow Condensed',sans-serif;font-weight:700">${j.partidos_jugados}</td>
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg2_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
@@ -930,19 +917,12 @@ function buildPerfilesFromPartidos() {
 function renderCuartos() {
   const perfiles = buildPerfilesFromPartidos();
   const grid = document.getElementById('cuartos-grid');
-  
-  if (!perfiles.length) {
-    grid.innerHTML = '<div style="color:var(--text3);padding:20px">No hay datos de parciales disponibles</div>';
-    return;
-  }
-  
-  const maxQ = Math.max(...perfiles.flatMap(e=>Object.values(e.cuartos_f)), ...perfiles.flatMap(e=>Object.values(e.cuartos_c)));
-  
+  const maxQ = Math.max(...perfiles.flatMap(e=>Object.values(e.cuartos_f)));
   grid.innerHTML = perfiles.map(e => {
     const cf = e.cuartos_f, cc = e.cuartos_c;
     const bars = ['Q1','Q2','Q3','Q4'].map(q => {
-      const hf = Math.round((cf[q]/maxQ)*48);
-      const hc = Math.round((cc[q]/maxQ)*48);
+      const hf = Math.round(cf[q]/maxQ*48);
+      const hc = Math.round(cc[q]/maxQ*48);
       const winQ = cf[q] > cc[q];
       return `<div class="qbar-wrap">
         <div class="qbar-inner">
@@ -1353,7 +1333,25 @@ function closeModal(e) {
     document.getElementById('modal-overlay').classList.remove('open');
 }
 </script>
+<script>
+// ── Datos cargados externamente para mantener el HTML liviano ──
+let DATA = null;
 
-
+fetch('datos_torneo_final.json')
+  .then(r => {
+    if (!r.ok) throw new Error('No se pudo cargar datos_torneo_final.json: ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    DATA = data;
+    initApp();
+  })
+  .catch(err => {
+    document.body.innerHTML = '<div style="padding:2rem;color:red;font-family:sans-serif">'
+      + '<h2>Error al cargar los datos</h2><p>' + err.message + '</p>'
+      + '<p>Asegurate de que <strong>datos_torneo_final.json</strong> esté en la misma carpeta que este HTML.</p></div>';
+    console.error(err);
+  });
+</script>
 </body>
 </html>
