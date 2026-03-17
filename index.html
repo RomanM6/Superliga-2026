@@ -797,9 +797,9 @@ function renderJugadores() {
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
@@ -1285,8 +1285,7 @@ function renderCompJug() {
 function openPlayerModal(nombre, equipo) {
   const j = DATA.jugadores.find(x=>x.nombre===nombre&&x.equipo===equipo);
   if(!j) return;
-  const bm = (DATA.comparativas.benchmarks_jugadores || [])
-           .find(b => b.nombre === nombre && b.equipo === equipo);
+  const bm = DATA.comparativas.benchmarks_jugadores[nombre+'|'+equipo];
   const pm = j.mas_menos_excel;
   const pmStr = pm>=0?`+${pm}`:pm;
   const pmCls = pm>0?'color:var(--green)':pm<0?'color:var(--red)':'';
@@ -1354,25 +1353,7 @@ function closeModal(e) {
     document.getElementById('modal-overlay').classList.remove('open');
 }
 </script>
-<script>
-// ── Datos cargados externamente para mantener el HTML liviano ──
-let DATA = null;
 
-fetch('datos_torneo_final.json')
-  .then(r => {
-    if (!r.ok) throw new Error('No se pudo cargar datos_torneo_final.json: ' + r.status);
-    return r.json();
-  })
-  .then(data => {
-    DATA = data;
-    initApp();
-  })
-  .catch(err => {
-    document.body.innerHTML = '<div style="padding:2rem;color:red;font-family:sans-serif">'
-      + '<h2>Error al cargar los datos</h2><p>' + err.message + '</p>'
-      + '<p>Asegurate de que <strong>datos_torneo_final.json</strong> esté en la misma carpeta que este HTML.</p></div>';
-    console.error(err);
-  });
-</script>
+
 </body>
 </html>
