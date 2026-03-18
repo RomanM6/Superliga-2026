@@ -225,7 +225,6 @@ select:focus{border-color:var(--orange)}
       <table class="player-table">
         <thead><tr>
           <th>#</th><th>JUGADOR</th>
-          <th onclick="setSortCol('partidos_jugados')" id="th-partidos_jugados">PJ</th>
           <th onclick="setSortCol('ppg')" id="th-ppg">PPG</th>
           <th onclick="setSortCol('rpg')" id="th-rpg">RPG</th>
           <th onclick="setSortCol('apg')" id="th-apg">APG</th>
@@ -782,13 +781,12 @@ function renderJugadores() {
     return `<tr onclick="openPlayerModal('${j.nombre}','${j.equipo}')">
       <td>${i+1}</td>
       <td title="${j.equipo}">${j.nombre}</td>
-      <td style="color:var(--text2)">${j.partidos_jugados}</td>
       <td class="pts-col">${j.ppg}</td>
       <td>${j.rpg}</td><td>${j.apg}</td><td>${j.spg}</td><td>${j.bpg}</td>
       <td style="color:var(--orange)">${j.vpg}</td>
-      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text);font-size:11px">${j.fg2_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text);font-size:11px">${j.fg3_pct}%</span></td>
-      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text);font-size:11px">${j.ft_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc2_anotados}/${j.tc2_intentados} <span style="color:var(--text3);font-size:11px">${j.fg2_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tc3_anotados}/${j.tc3_intentados} <span style="color:var(--text3);font-size:11px">${j.fg3_pct}%</span></td>
+      <td style="color:var(--text2)">${j.tl_anotados}/${j.tl_intentados} <span style="color:var(--text3);font-size:11px">${j.ft_pct}%</span></td>
       <td style="color:var(--yellow)">${j.ts_pct}%</td>
       <td style="color:var(--blue)">${j.per}</td>
       <td ${pmCls}>${pmStr}</td>
@@ -1091,11 +1089,31 @@ function renderKPIs() {
   const maxPpg = Math.max(...kpis.map(e=>e.ppg_f));
   const maxReb = Math.max(...kpis.map(e=>e.reb_tot_pg));
   const maxAst = Math.max(...kpis.map(e=>e.ast_pg));
+
+  // Calcular puntos por vía (2p, 3p, 1p) para cada equipo desde los partidos
+  const ptsViaPorEquipo = {};
+  DATA.partidos.forEach(p => {
+    ['local','visitante'].forEach(side => {
+      const eq = p[`equipo_${side}`];
+      const t = p[`totales_${side}`];
+      if (!ptsViaPorEquipo[eq]) ptsViaPorEquipo[eq] = {pts2:0, pts3:0, pts1:0};
+      ptsViaPorEquipo[eq].pts2 += t.tc2_anotados * 2;
+      ptsViaPorEquipo[eq].pts3 += t.tc3_anotados * 3;
+      ptsViaPorEquipo[eq].pts1 += t.tl_anotados * 1;
+    });
+  });
+
   grid.innerHTML = kpis.sort((a,b)=>b.puntos_tabla-a.puntos_tabla).map(e => {
-    const bar = (val,max,cls) => `<div class="bar-row">
-      <div class="bar-lbl"><span>${e.equipo==='ATALAYA'?'FG%':''}${''}</span><strong>${val}</strong></div>
-      <div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.round(val/max*100)}%"></div></div>
-    </div>`;
+    // Buscar la clave del equipo en ptsViaPorEquipo (puede diferir en tildes)
+    const viaKey = Object.keys(ptsViaPorEquipo).find(k => k === e.equipo) ||
+                   Object.keys(ptsViaPorEquipo).find(k => k.normalize('NFD').replace(/[\u0300-\u036f]/g,'') === e.equipo.normalize('NFD').replace(/[\u0300-\u036f]/g,'')) ||
+                   Object.keys(ptsViaPorEquipo).find(k => k.replace(/[^A-Z]/gi,'').toUpperCase() === e.equipo.replace(/[^A-Z]/gi,'').toUpperCase());
+    const via = viaKey ? ptsViaPorEquipo[viaKey] : {pts2:0,pts3:0,pts1:0};
+    const viaTotal = via.pts2 + via.pts3 + via.pts1 || 1;
+    const pct2 = (via.pts2 / viaTotal * 100).toFixed(1);
+    const pct3 = (via.pts3 / viaTotal * 100).toFixed(1);
+    const pct1 = (via.pts1 / viaTotal * 100).toFixed(1);
+
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
         <div>
@@ -1111,7 +1129,7 @@ function renderKPIs() {
           <div style="font-size:10px;color:var(--text2)">PTS F - PTS C</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;text-align:center">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;text-align:center">
         <div style="background:var(--surface2);border-radius:6px;padding:8px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px">${e.fg_pct}%</div>
           <div style="font-size:10px;color:var(--text2)">FG%</div>
@@ -1123,6 +1141,20 @@ function renderKPIs() {
         <div style="background:var(--surface2);border-radius:6px;padding:8px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px">${e.ft_pct}%</div>
           <div style="font-size:10px;color:var(--text2)">TL%</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;text-align:center">
+        <div style="background:var(--surface2);border-radius:6px;padding:8px;border-top:2px solid var(--orange)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--orange)">${pct2}%</div>
+          <div style="font-size:10px;color:var(--text2)">VÍA 2P</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:8px;border-top:2px solid var(--blue)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--blue)">${pct3}%</div>
+          <div style="font-size:10px;color:var(--text2)">VÍA 3P</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:8px;border-top:2px solid var(--green)">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--green)">${pct1}%</div>
+          <div style="font-size:10px;color:var(--text2)">VÍA TL</div>
         </div>
       </div>
       <div class="bar-row">
@@ -1267,10 +1299,7 @@ function renderCompJug() {
 function openPlayerModal(nombre, equipo) {
   const j = DATA.jugadores.find(x=>x.nombre===nombre&&x.equipo===equipo);
   if(!j) return;
-  const bmList = DATA.comparativas.benchmarks_jugadores;
-  const bm = Array.isArray(bmList)
-    ? bmList.find(x => x.nombre === nombre && x.equipo === equipo)
-    : bmList[nombre+'|'+equipo];
+  const bm = DATA.comparativas.benchmarks_jugadores[nombre+'|'+equipo];
   const pm = j.mas_menos_excel;
   const pmStr = pm>=0?`+${pm}`:pm;
   const pmCls = pm>0?'color:var(--green)':pm<0?'color:var(--red)':'';
