@@ -1091,11 +1091,32 @@ function renderKPIs() {
   const maxPpg = Math.max(...kpis.map(e=>e.ppg_f));
   const maxReb = Math.max(...kpis.map(e=>e.reb_tot_pg));
   const maxAst = Math.max(...kpis.map(e=>e.ast_pg));
+
+  // Pre-calcular peso % de puntos por vía (2P, 3P, TL) por equipo
+  // Normaliza nombres para ignorar tildes y variantes
+  const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+  const pesoMap = {};
+  DATA.jugadores.forEach(j => {
+    const key = norm(j.equipo);
+    if (!pesoMap[key]) pesoMap[key] = {pts2:0, pts3:0, pts1:0};
+    pesoMap[key].pts2 += (j.tc2_anotados||0) * 2;
+    pesoMap[key].pts3 += (j.tc3_anotados||0) * 3;
+    pesoMap[key].pts1 += (j.tl_anotados||0) * 1;
+  });
+
   grid.innerHTML = kpis.sort((a,b)=>b.puntos_tabla-a.puntos_tabla).map(e => {
     const bar = (val,max,cls) => `<div class="bar-row">
       <div class="bar-lbl"><span>${e.equipo==='ATALAYA'?'FG%':''}${''}</span><strong>${val}</strong></div>
       <div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.round(val/max*100)}%"></div></div>
     </div>`;
+
+    // Calcular pesos %
+    const wp = pesoMap[norm(e.equipo)] || {pts2:0, pts3:0, pts1:0};
+    const wpTotal = wp.pts2 + wp.pts3 + wp.pts1 || 1;
+    const wp2 = Math.round(wp.pts2 / wpTotal * 100);
+    const wp3 = Math.round(wp.pts3 / wpTotal * 100);
+    const wp1 = 100 - wp2 - wp3; // asegura que sume 100
+
     return `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
         <div>
@@ -1111,7 +1132,7 @@ function renderKPIs() {
           <div style="font-size:10px;color:var(--text2)">PTS F - PTS C</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;text-align:center">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;text-align:center">
         <div style="background:var(--surface2);border-radius:6px;padding:8px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px">${e.fg_pct}%</div>
           <div style="font-size:10px;color:var(--text2)">FG%</div>
@@ -1123,6 +1144,20 @@ function renderKPIs() {
         <div style="background:var(--surface2);border-radius:6px;padding:8px">
           <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px">${e.ft_pct}%</div>
           <div style="font-size:10px;color:var(--text2)">TL%</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;text-align:center">
+        <div style="background:var(--surface2);border-radius:6px;padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--orange)">${wp2}%</div>
+          <div style="font-size:10px;color:var(--text2)">PTS x 2P</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--blue)">${wp3}%</div>
+          <div style="font-size:10px;color:var(--text2)">PTS x 3P</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:8px">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;color:var(--green)">${wp1}%</div>
+          <div style="font-size:10px;color:var(--text2)">PTS x TL</div>
         </div>
       </div>
       <div class="bar-row">
