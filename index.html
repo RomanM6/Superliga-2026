@@ -480,7 +480,7 @@ function filterMatchesByFecha(fechaNumero, seccion, button) {
     wrap.innerHTML = partidosFiltrados.map(p => {
       const localWin = p.pts_local > p.pts_visitante;
       const pl = p.parciales_local, pv = p.parciales_visitante;
-      const quarters = (pl && pl.q1 != null) ? `
+      const quarters = (pl && pl.q1 !== undefined) ? `
         <div class="match-quarters">
           ${['q1','q2','q3','q4'].map((q,i)=>{
             const lw=pl[q]>pv[q],vw=pv[q]>pl[q];
@@ -592,7 +592,7 @@ function filterMatchesByFecha(fechaNumero, seccion, button) {
 function renderMatchCard(p) {
   const localWin = p.pts_local > p.pts_visitante;
   const pl = p.parciales_local, pv = p.parciales_visitante;
-  const quarters = (pl && pl.q1 != null) ? `
+  const quarters = (pl && pl.q1 !== undefined) ? `
     <div class="match-quarters">
       ${['q1','q2','q3','q4'].map((q,i)=>{
         const lw = pl[q] > pv[q], vw = pv[q] > pl[q];
@@ -644,7 +644,7 @@ function renderPartidos() {
   wrap.innerHTML = DATA.partidos.map(p => {
     const localWin = p.pts_local > p.pts_visitante;
     const pl = p.parciales_local, pv = p.parciales_visitante;
-    const quarters = (pl && pl.q1 != null) ? `
+    const quarters = (pl && pl.q1 !== undefined) ? `
       <div class="match-quarters">
         ${['q1','q2','q3','q4'].map((q,i)=>{
           const lw=pl[q]>pv[q],vw=pv[q]>pl[q];
